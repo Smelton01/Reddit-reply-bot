@@ -36,7 +36,7 @@ func Start() {
 
 func (f *factory) Post(p *reddit.Post) error {
 	numbers := []int{}
-	if p.Author == "strugglingstrimerbot" {
+	if p.Author == "strugglingstrimerbot" || p.Author == "LSFmoderator" {
 		return nil
 	}
 	if strings.Contains(p.SelfText, "#") || strings.Contains(p.Title, "#") {
@@ -72,7 +72,7 @@ func (f *factory) Post(p *reddit.Post) error {
 
 func (f *factory) Comment(c *reddit.Comment) error {
 	numbers := []int{}
-	if c.Author == "strugglingstrimerbot" {
+	if c.Author == "strugglingstrimerbot" || c.Author == "LSFmoderator" {
 		return nil
 	}
 	if strings.Contains(c.Body, "#") {
