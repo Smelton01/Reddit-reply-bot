@@ -3,8 +3,8 @@ package bot
 import (
 	"fmt"
 	"log"
+	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/smelton01/strearning-bot/scrape"
@@ -15,6 +15,8 @@ import (
 type factory struct {
 	bot reddit.Bot
 }
+
+const captureRank = `\D#(\d+)\D`
 
 func Start() {
 	bot, err := reddit.NewBotFromAgentFile("bot.agent", 10*time.Second)
@@ -39,69 +41,62 @@ func (f *factory) Post(p *reddit.Post) error {
 	if p.Author == "strugglingstrimerbot" || p.Author == "LSFmoderator" {
 		return nil
 	}
-	if strings.Contains(p.SelfText, "#") || strings.Contains(p.Title, "#") {
-		whole := strings.Split(p.Title, " ")
-		whole = append(whole, strings.Split(p.SelfText, " ")...)
-		for _, word := range whole {
-			if word[0] == '#' {
-				rank := strings.TrimSpace(word[1:])
-				r, err := strconv.Atoi(rank)
-				if err != nil {
-					log.Printf("failed to convert %v: %v", rank, err)
-					continue
-				}
-				if r > 5000 || r < 1 {
-					log.Printf("number out of bounds: %v", r)
-					continue
-				}
-				numbers = append(numbers, r)
+
+	rank := regexp.MustCompile(`\D#(\d+)\D`)
+	text := p.Title + " " + p.SelfText
+
+	if ranks := rank.FindAllStringSubmatch(text, -1); len(ranks) != 0 {
+		for _, rank := range ranks {
+			r, err := strconv.Atoi(rank[1])
+			if err != nil {
+				log.Printf("failed to convert %v: %v", rank, err)
+				continue
 			}
-		}
-		if len(numbers) == 0 {
-			return nil
+			if r > 5000 || r < 1 {
+				log.Printf("number out of bounds: %v", r)
+				continue
+			}
+			numbers = append(numbers, r)
 		}
 		message := reply(numbers)
 		err := f.bot.Reply(p.Name, message)
 		if err != nil {
 			log.Fatalf("failed to reply: %v", err)
 		}
-		log.Printf("replied to u/%v", p.Author)
 	}
+	log.Printf("replied to u/%v", p.Author)
 	return nil
 }
 
 func (f *factory) Comment(c *reddit.Comment) error {
 	numbers := []int{}
+
 	if c.Author == "strugglingstrimerbot" || c.Author == "LSFmoderator" {
 		return nil
 	}
-	if strings.Contains(c.Body, "#") {
-		whole := strings.Split(c.Body, " ")
-		for _, word := range whole {
-			if word[0] == '#' {
-				rank := strings.TrimSpace(word[1:])
-				r, err := strconv.Atoi(rank)
-				if err != nil {
-					log.Printf("failed to convert %v: %v", rank, err)
-					continue
-				}
-				if r > 5000 || r < 1 {
-					log.Printf("number out of bounds: %v", r)
-					continue
-				}
-				numbers = append(numbers, r)
+
+	rank := regexp.MustCompile(`\D#(\d+)\D`)
+
+	if ranks := rank.FindAllStringSubmatch(c.Body, -1); len(ranks) != 0 {
+		for _, rank := range ranks {
+			r, err := strconv.Atoi(rank[1])
+			if err != nil {
+				log.Printf("failed to convert %v: %v", rank, err)
+				continue
 			}
-		}
-		if len(numbers) == 0 {
-			return nil
+			if r > 5000 || r < 1 {
+				log.Printf("number out of bounds: %v", r)
+				continue
+			}
+			numbers = append(numbers, r)
 		}
 		message := reply(numbers)
 		err := f.bot.Reply(c.Name, message)
 		if err != nil {
 			log.Fatalf("failed to reply: %v", err)
 		}
-		log.Printf("replied to u/%v", c.Author)
 	}
+	log.Printf("replied to u/%v", c.Author)
 	return nil
 }
 
