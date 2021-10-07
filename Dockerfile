@@ -8,7 +8,7 @@ COPY go.mod ./
 COPY go.sum ./
 RUN go mod download
 
-COPY * ./
+COPY . ./
 COPY /bot ./bot
 COPY /scrape ./scrape
 

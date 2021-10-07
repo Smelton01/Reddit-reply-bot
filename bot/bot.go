@@ -22,7 +22,7 @@ func Start() {
 		log.Fatalf("failed to initialize bot: %v", err)
 	}
 
-	cfg := graw.Config{Subreddits: []string{"bottesting"}, SubredditComments: []string{"bottesting"}}
+	cfg := graw.Config{Subreddits: []string{"bottesting", "LivestreamFail"}, SubredditComments: []string{"LivestreamFail", "bottesting"}}
 
 	handler := &factory{bot: bot}
 	fmt.Println("starting run")
@@ -35,8 +35,38 @@ func Start() {
 }
 
 func (f *factory) Post(p *reddit.Post) error {
-	fmt.Printf("%s posted [%s]\n", p.Author, p.Title)
-	f.bot.SendMessage(p.Author, "hello", "world fdsdf")
+	numbers := []int{}
+	if p.Author == "strugglingstrimerbot" {
+		return nil
+	}
+	if strings.Contains(p.SelfText, "#") || strings.Contains(p.Title, "#") {
+		whole := strings.Split(p.Title, " ")
+		whole = append(whole, strings.Split(p.SelfText, " ")...)
+		for _, word := range whole {
+			if word[0] == '#' {
+				rank := strings.TrimSpace(word[1:])
+				r, err := strconv.Atoi(rank)
+				if err != nil {
+					log.Printf("failed to convert %v: %v", rank, err)
+					continue
+				}
+				if r > 5000 || r < 1 {
+					log.Printf("number out of bounds: %v", r)
+					continue
+				}
+				numbers = append(numbers, r)
+			}
+		}
+		if len(numbers) == 0 {
+			return nil
+		}
+		message := reply(numbers)
+		err := f.bot.Reply(p.Name, message)
+		if err != nil {
+			log.Fatalf("failed to reply: %v", err)
+		}
+		log.Printf("replied to u/%v", p.Author)
+	}
 	return nil
 }
 
@@ -77,12 +107,12 @@ func (f *factory) Comment(c *reddit.Comment) error {
 
 func reply(nums []int) string {
 	replyMessage := ""
-	base := "* Streamer #%v is [%v](%v) earning *only* ^(%v) in two years. "
+	base := "Streamer #%v is [%v](%v) earning *only* ^(%v) over the last 2 years.\n  "
 	for _, rank := range nums {
 		data := scrape.GetData()
 		streamer := data[rank-1]
 		replyMessage += fmt.Sprintf(base, rank, streamer.Name, streamer.Url, streamer.Money)
 	}
-	replyMessage += "\n--- ^(please PM [u/Smelton09](https://www.reddit.com/user/Smelton09/) with issues or feedback! [Code](https://github.com/Smelton01/struggling-streamer-bot))"
+	replyMessage += "\n  ^(please PM [u/Smelton09](https://www.reddit.com/user/Smelton09/) with issues or feedback! [Code](https://github.com/Smelton01/struggling-streamer-bot))"
 	return replyMessage
 }
